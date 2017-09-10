@@ -1,0 +1,30 @@
+Install MySQL
+	sudo apt-get install mysql-server
+
+To log in to MySQL as the root user:
+	mysql -u root -p
+	//USER "root"
+	//PASSWORD "root"
+
+
+Create a New MySQL Database "ems_data"
+	create database ems_data;
+ 	use ems_data;
+
+
+Create table "user" with attributes "user_name" and "passwd"
+			  Field   | Type        | Null | Key | Default
+			user_name | varchar(20) | NO   | PRI | NULL    |      
+			passwd    | varchar(20) | NO   |     | NULL    |    
+
+			CREATE TABLE user (user_name VARCHAR(20) NOT NULL PRIMARY, passwd  varchar(20) NOT NULL);
+			INSERT INTO user VALUES ('username','password');
+
+			ALTER TABLE user CHANGE user_name user_name VARCHAR(20) BINARY NOT NULL;
+			DELETE FROM user WHERE user_name = "abc";
+
+To export databases:
+	mysqldump -u YourUser -p YourDatabaseName > wantedsqlfile.sql
+
+To import database:
+	mysql -u <username> -p <databasename> < <filename.sql>
