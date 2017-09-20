@@ -32,7 +32,7 @@ Clients will use Server IP and port to connect this server for fetching files.
 using namespace std;
 
 #define ERROR     -1  // defines error message
-#define MAX_CLIENTS    10//defines maximum number of clients that can connect simultaneously
+#define MAX_CLIENTS    50//defines maximum number of clients that can connect simultaneously
 #define MAX_BUFFER   512 //used to set max size of buffer for send recieve data 
 
 // Defining Constant Variables for database connections
@@ -52,6 +52,9 @@ int connect_to_auth_server(char*,char*,char*); // function to connect to authent
 //string get_event(string,string);
 int upload_file(int , char*);
 
+struct request {
+	char uname[50],upassword[20],type[10];
+};
 
 
 
@@ -129,14 +132,14 @@ int main(int argc, char **argv)
         new_sock = new int(1);
         *new_sock = new1;
          
-        if( pthread_create( &thread_id , NULL ,  client_handler , (void*) &new1) < 0)
+        if( pthread_create( &sniffer_thread , NULL ,  client_handler , (void*) new_sock) < 0)
         {
             perror("could not create thread");
             return 1;
         }
          
         //Now join the thread , so that we dont terminate before the thread
-        //pthread_join( sniffer_thread , NULL);
+        pthread_join( sniffer_thread , NULL);
         printf("New client connected from port no %d and IP %s\n", ntohs(client.sin_port), 
 inet_ntoa(client.sin_addr));
 	 	
@@ -164,6 +167,7 @@ void *client_handler(void *socket_cl)
     //Get the socket descriptor
     int new1 = *(int*)socket_cl;
     char *temp;
+    struct request newreq;
 
     //variables for add new user operation
 	char buffer[MAX_BUFFER]; // Receiver buffer; 
@@ -215,28 +219,28 @@ void *client_handler(void *socket_cl)
 			
 			}//clos if loop
 
+
+
 			//ADD NEW USER OPERATION
 		if(buffer[0]=='n' && buffer[1]=='e' && buffer[2]=='w') // check if user wants to publish a file
 		{
 
-			char ack[]="Request_received";
-			send(new1, ack, sizeof(ack), 0); // recieve confirmation message from server
+			strcpy(newreq.type, "new");
+			int i,j;
+			char str[512];
+			j = 0;	
+			for( i = 4;	buffer[i] != ':' ; i++ )
+				str[j++]=buffer[i];
+			buffer[j]=0;
+			strcpy(newreq.uname, str);
+			cout<<newreq.uname;
 
-	
-		//Recieve username and password
-		char login_name[MAX_BUFFER];
-		char login_password[MAX_BUFFER];
-		//struct user new_user = {0}; //Initializing to null
-		
-		bzero(buffer,MAX_BUFFER);	
-		len=recv(new1, login_name, MAX_BUFFER, 0); //recv user name from client, data is pointer where data recd will be stored
-		login_name[len] = '\0';
-		char Report1[] = "Username recieved"; 
-		send(new1,Report1,sizeof(Report1),0);
-
-		bzero(buffer,MAX_BUFFER);
-		len=recv(new1, login_password, MAX_BUFFER, 0); //recv user password from client, data is pointer where data recd will be st
-		login_password[len] = '\0';
+			for( i = j;	buffer[i] != ':' ; i++ )
+				str[j++]=buffer[i];
+			buffer[j]=0;
+			
+			strcpy(newreq.upassword, str);
+			cout<<newreq.upassword;
 		//char Report2[] = "Password recieved"; 
 		//send(new1,Report2,sizeof(Report2),0);	
 
@@ -248,7 +252,7 @@ void *client_handler(void *socket_cl)
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//INSERT CODE TO ADD USERS TO DATABASE
         temp ="new";
-        success = connect_to_auth_server(login_name,login_password,temp);
+        success = connect_to_auth_server(newreq.uname,newreq.upassword,temp);
 
 
 
@@ -286,31 +290,31 @@ void *client_handler(void *socket_cl)
 		//AUTHENTICATE USER AND GET EVENTS
 		else if(buffer[0]=='g' && buffer[1]=='e' && buffer[2]=='t') //check keyword for search sent by client
 		{
+			strcpy(newreq.type, "get");
+			int i,j;
+			char str[512];
+			j = 0;	
+			for( i = 4;	buffer[i] != ':' ; i++ )
+				str[j++]=buffer[i];
+			buffer[j]=0;
+			strcpy(newreq.uname, str);
+			cout<<newreq.uname<<endl;
 
+			for( i = j;	buffer[i] != ':' ; i++ )
+				str[j++]=buffer[i];
+			buffer[j]=0;
+			
+			strcpy(newreq.upassword, str);
+			cout<<newreq.upassword;
+
+			/*
 			char ack[]="Request_received";
 			send(new1, ack, sizeof(ack), 0); // recieve confirmation message from server
 			success=0;
 			bzero(buffer,MAX_BUFFER); // clearing the buffer by padding
+			*/
 
-
-			len=recv(new1, buffer, MAX_BUFFER, 0); //recv user_name from client to search
-			char Report1[] = "username recieved"; 
-			send(new1,Report1,sizeof(Report1),0);
-			sscanf (buffer, "%s\n", user_name); /* discard CR/LF */
-			bzero(buffer,MAX_BUFFER); // clearing the buffer by padding
-			//user_name[len] = '\0';
-			printf("Username recieved %s\n",user_name);
-
-			len=recv(new1, buffer, MAX_BUFFER, 0); //recv user_name from client to search
-			sscanf (buffer, "%s\n", user_key); /* discard CR/LF */
-			bzero(buffer,MAX_BUFFER); // clearing the buffer by padding
-			//user_name[len] = '\0';
-			//char Report2[] = "password recieved"; 
-			//send(new1,Report2,sizeof(Report2),0);
-			//user_key[len] = '\0';
-			printf("Password recieved %s\n \n",user_key);
-
-		
+				
 			//printf("%s\n",file_name);
 
 			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -320,7 +324,7 @@ void *client_handler(void *socket_cl)
 			//	thread t1(connect_to_auth_server,user_name,user_key,temp );
 			// auto future = std::async(connect_to_auth_server,user_name,user_key,temp );
 			//success = future.get(); 
-			success = connect_to_auth_server(user_name,user_key,temp);
+			success = connect_to_auth_server(newreq.uname,newreq.upassword,temp);
 			//	t1.join();
 			
 
@@ -390,7 +394,7 @@ void *client_handler(void *socket_cl)
 	}// close while loop inside fork.server will keep listening client till disconnected
 	
 	
-         
+       close(new1);   
     //Free the socket pointer
     free(socket_cl);
      
